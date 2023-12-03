@@ -21,6 +21,7 @@ const uint16_t rateOfDescend = 100;
 uint16_t ascendMax = 0;
 uint16_t descendMax = 50; // screen resolution_y = 64, flappy_h = 15 (64 - 15 =~ 50)
 lv_obj_t *flappy;
+
 /*
  * Get button configuration from the devicetree sw0 alias. This is mandatory.
  */
@@ -51,6 +52,35 @@ void init_display()
 		return;
 	}
 	display_blanking_off(display_dev);
+}
+
+lv_obj_t *create_rect(lv_align_t startposition)
+{
+	/*Create an array for the points of the line*/
+	static lv_point_t line_points[] = {{0, 0}, {0, 30}};
+	/*Create style*/
+	static lv_style_t style_line;
+	lv_style_init(&style_line);
+	lv_style_set_line_width(&style_line, LV_STATE_DEFAULT, 8);
+	lv_style_set_line_color(&style_line, LV_STATE_DEFAULT, LV_COLOR_BLACK);
+
+	/*Create a line and apply the new style*/
+	lv_obj_t *dot;
+	dot = lv_line_create(lv_scr_act(), NULL);
+	lv_line_set_points(dot, line_points, 2); /*Set the points*/
+	lv_obj_add_style(dot, LV_LINE_PART_MAIN, &style_line);
+	lv_obj_align(dot, NULL, startposition, 0, 0);
+	return dot;
+}
+
+bool collisionCheck(lv_obj_t *obj1, lv_obj_t *obj2)
+{
+	if (obj1->coords.x2 < obj2->coords.x1 && obj1->coords.x1 < obj2->coords.x2 &&
+		obj2->coords.y1 < obj1->coords.y2 && obj1->coords.y1 < obj2->coords.y2)
+	{
+		return true; 
+	}
+	return false;
 }
 
 void main(void)
@@ -92,15 +122,44 @@ void main(void)
 	reset_pos_flappy(flappy);
 	lv_task_handler();
 
+	lv_obj_t *left = create_rect(LV_ALIGN_IN_BOTTOM_RIGHT);
+	lv_obj_t *right = create_rect(LV_ALIGN_IN_BOTTOM_RIGHT);
+	move_flappy_x(right, lv_obj_get_x(left) + 64);
+	lv_align_t startPostions[] = {LV_ALIGN_IN_BOTTOM_RIGHT, LV_ALIGN_IN_RIGHT_MID, LV_ALIGN_IN_TOP_RIGHT};
+
+	int i = 0;
+
 	while (1)
 	{
 		move_flappy_y(flappy, y);
 		move_flappy_x(flappy, x);
+		// collision check between left and flappy
+		if (collisionCheck(flappy, left))
+		{
+			if (lv_obj_get_x(left) <= 0)
+			{
+				lv_obj_t *tmp = left;
+				left = right;
+				right = tmp;
+				lv_obj_align(right, NULL, startPostions[i], 0, 0);
+			}
+			else
+			{
+				move_flappy_x(left, lv_obj_get_x(left) - 1);
+				move_flappy_x(right, lv_obj_get_x(right) - 1);
+			}
+		}
+
 		lv_task_handler();
 		k_sleep(K_MSEC(rateOfDescend));
 		if (y < descendMax)
 		{
 			y = y + descend;
+		}
+		i++;
+		if (i >= 4)
+		{
+			i = 0;
 		}
 	}
 }
