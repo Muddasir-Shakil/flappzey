@@ -3,6 +3,7 @@
 #include <drivers/sensor.h>
 #include <lvgl.h>
 #include <stdio.h>
+#include <stdlib.h>     
 #include <string.h>
 #include <zephyr.h>
 #include <flappy.h>
@@ -157,12 +158,12 @@ void main(void)
 		move_flappy_y(flappy, y);
 		if (!collisionCheck(flappy, left))
 		{
-			if (lv_obj_get_x(left) <= 0)
+			if (lv_obj_get_x(left) < 0)
 			{
-				lv_obj_t *tmp = left;
+				lv_obj_del(left);
 				left = right;
-				right = tmp;
-				lv_obj_align(right, NULL, startPostions[i], 0, 0);
+				i = rand() % 3; // use rand() function to get the random number 
+				right = create_rect(startPostions[i]);
 			}
 			else
 			{
@@ -173,11 +174,6 @@ void main(void)
 			if (y < descendMax)
 			{
 				y = y + descend;
-			}
-			i++;
-			if (i >= 4)
-			{
-				i = 0;
 			}
 			lv_task_handler();
 		}
