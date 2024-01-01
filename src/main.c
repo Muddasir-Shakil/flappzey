@@ -21,6 +21,7 @@ const uint16_t rateOfDescend = 100;
 uint16_t ascendMax = 0;
 uint16_t descendMax = 50; // screen resolution_y = 64, flappy_h = 15 (64 - 15 =~ 50)
 lv_obj_t *flappy;
+lv_obj_t *score;
 /*
  * Get button configuration from the devicetree sw0 alias. This is mandatory.
  */
@@ -51,6 +52,13 @@ void init_display()
 		return;
 	}
 	display_blanking_off(display_dev);
+}
+
+lv_obj_t *create_scoreboard()
+{
+	lv_obj_t *scoreLabel = lv_label_create(lv_scr_act(), NULL);
+	lv_obj_align(scoreLabel, NULL, LV_ALIGN_IN_TOP_LEFT, 0, 0);
+	lv_label_set_text(scoreLabel, "0");
 }
 
 lv_obj_t *create_rect(lv_align_t startposition)
@@ -118,12 +126,14 @@ void main(void)
 	printk("Set up button at %s pin %d\n", button.port->name, button.pin);
 
 	flappy = create_flappy();
+	score = create_scoreboard();
 	reset_pos_flappy(flappy);
-	lv_task_handler();
+	move_flappy_x(flappy, x);
 
 	lv_obj_t *left = create_rect(LV_ALIGN_IN_BOTTOM_RIGHT);
 	lv_obj_t *right = create_rect(LV_ALIGN_IN_BOTTOM_RIGHT);
 	move_flappy_x(right, lv_obj_get_x(left) + 64);
+	lv_task_handler();
 	lv_align_t startPostions[] = {LV_ALIGN_IN_BOTTOM_RIGHT, LV_ALIGN_IN_RIGHT_MID, LV_ALIGN_IN_TOP_RIGHT};
 
 	int i = 0;
@@ -131,7 +141,6 @@ void main(void)
 	while (1)
 	{
 		move_flappy_y(flappy, y);
-		move_flappy_x(flappy, x);
 		if (!collisionCheck(flappy, left))
 		{
 			if (lv_obj_get_x(left) <= 0)
@@ -146,7 +155,6 @@ void main(void)
 				move_flappy_x(left, lv_obj_get_x(left) - 1);
 				move_flappy_x(right, lv_obj_get_x(right) - 1);
 			}
-			lv_task_handler();
 			k_sleep(K_MSEC(rateOfDescend));
 			if (y < descendMax)
 			{
@@ -157,6 +165,7 @@ void main(void)
 			{
 				i = 0;
 			}
+			lv_task_handler();
 		}
 	}
 }
