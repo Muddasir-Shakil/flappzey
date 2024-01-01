@@ -22,23 +22,37 @@ uint16_t ascendMax = 0;
 uint16_t descendMax = 50; // screen resolution_y = 64, flappy_h = 15 (64 - 15 =~ 50)
 lv_obj_t *flappy;
 lv_obj_t *score;
+
 /*
  * Get button configuration from the devicetree sw0 alias. This is mandatory.
  */
-#define SW0_NODE DT_ALIAS(sw0)
-#if !DT_NODE_HAS_STATUS(SW0_NODE, okay)
-#error "Unsupported board: sw0 devicetree alias is not defined"
+#define SW1_NODE DT_ALIAS(sw1)
+#if !DT_NODE_HAS_STATUS(SW1_NODE, okay)
+#error "Unsupported board: sw1 devicetree alias is not defined"
 #endif
-static const struct gpio_dt_spec button = GPIO_DT_SPEC_GET_OR(SW0_NODE, gpios,
-															  {0});
+static const struct gpio_dt_spec button1 = GPIO_DT_SPEC_GET_OR(SW1_NODE, gpios,
+															   {0});
+
 static struct gpio_callback button_cb_data;
+
+static void cooldown_expired(struct k_work *work)
+{
+	ARG_UNUSED(work);
+	int val = gpio_pin_get_dt(&button1);
+	if (val)
+	{
+		if (y > 0)
+			y = y + ascend;
+		move_flappy_y(flappy, y);
+	}
+}
+
+static K_WORK_DELAYABLE_DEFINE(cooldown_work, cooldown_expired);
 
 void button_pressed(const struct device *dev, struct gpio_callback *cb,
 					uint32_t pins)
 {
-	if (y > 0)
-		y = y + ascend;
-	move_flappy_y(flappy, y);
+	k_work_reschedule(&cooldown_work, K_MSEC(15));
 }
 
 void init_display()
@@ -81,9 +95,9 @@ lv_obj_t *create_rect(lv_align_t startposition)
 }
 
 bool collisionCheck(lv_obj_t *obj1, lv_obj_t *obj2)
-{	 
+{
 	if (obj2->coords.x1 + 2 < obj1->coords.x2 && obj1->coords.x1 < obj2->coords.x2 - 2 &&
-	obj1->coords.y1 < obj2->coords.y2 - 3 && obj2->coords.y1 - 2< obj1->coords.y2)
+		obj1->coords.y1 < obj2->coords.y2 - 3 && obj2->coords.y1 - 2 < obj1->coords.y2)
 	{
 		return true;
 	}
@@ -97,33 +111,33 @@ void main(void)
 
 	int ret;
 
-	if (!device_is_ready(button.port))
+	if (!device_is_ready(button1.port))
 	{
 		printk("Error: button device %s is not ready\n",
-			   button.port->name);
+			   button1.port->name);
 		return;
 	}
 
-	ret = gpio_pin_configure_dt(&button, GPIO_INPUT);
+	ret = gpio_pin_configure_dt(&button1, GPIO_INPUT);
 	if (ret != 0)
 	{
 		printk("Error %d: failed to configure %s pin %d\n",
-			   ret, button.port->name, button.pin);
+			   ret, button1.port->name, button1.pin);
 		return;
 	}
 
-	ret = gpio_pin_interrupt_configure_dt(&button,
-										  GPIO_INT_EDGE_TO_ACTIVE);
+	ret = gpio_pin_interrupt_configure_dt(&button1,
+										  GPIO_INT_EDGE_BOTH);
 	if (ret != 0)
 	{
 		printk("Error %d: failed to configure interrupt on %s pin %d\n",
-			   ret, button.port->name, button.pin);
+			   ret, button1.port->name, button1.pin);
 		return;
 	}
 
-	gpio_init_callback(&button_cb_data, button_pressed, BIT(button.pin));
-	gpio_add_callback(button.port, &button_cb_data);
-	printk("Set up button at %s pin %d\n", button.port->name, button.pin);
+	gpio_init_callback(&button_cb_data, button_pressed, BIT(button1.pin));
+	gpio_add_callback(button1.port, &button_cb_data);
+	printk("Set up button at %s pin %d\n", button1.port->name, button1.pin);
 
 	flappy = create_flappy();
 	score = create_scoreboard();

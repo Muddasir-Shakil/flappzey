@@ -4,6 +4,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/ {
+	gpio_keys {
+		compatible = "gpio-keys";
+		user_button1: button_1 {
+			gpios = <&arduino_header 6 GPIO_ACTIVE_LOW>;
+			label = "User SB2";
+		};
+	};
+
+	aliases {
+		sw1 = &user_button1;
+	};
+};
+
 arduino_i2c: &i2c1 {
 	mpu6050@68 {
 		compatible = "invensense,mpu6050";
